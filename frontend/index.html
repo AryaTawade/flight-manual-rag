@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flight Manual RAG — AI Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e14;
+    --surface: #111720;
+    --surface2: #18202d;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --accent: #3b82f6;
+    --accent2: #1d4ed8;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+  .app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+  .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
+  .logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .logo-text { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+  .logo-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-left: 42px; }
+  .sidebar-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .section-label { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  #upload-zone { border: 1px dashed var(--border2); border-radius: 10px; padding: 20px 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  #upload-zone:hover { border-color: var(--accent); background: rgba(59,130,246,0.05); }
+  #upload-zone.drag { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .upload-icon { font-size: 24px; margin-bottom: 8px; }
+  .upload-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .upload-text span { color: var(--accent); }
+  #file-input { display: none; }
+  #doc-status { display: none; }
+  .doc-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .doc-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+  .doc-icon { width: 36px; height: 36px; background: rgba(59,130,246,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .doc-meta { flex: 1; min-width: 0; }
+  .doc-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+  .doc-stat { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .doc-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-family: var(--mono); padding: 3px 8px; border-radius: 4px; background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+  .dot { width: 5px; height: 5px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .btn-change { width: 100%; margin-top: 10px; padding: 6px; background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--muted); font-size: 11px; cursor: pointer; font-family: var(--sans); transition: all 0.15s; }
+  .btn-change:hover { border-color: var(--red); color: var(--red); }
+  #processing { display: none; }
+  .proc-inner { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .proc-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #proc-label { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; animation: progress 2s ease-in-out infinite; }
+  @keyframes progress { 0%{width:10%} 50%{width:80%} 100%{width:10%} }
+  .stack-pills { display: flex; flex-wrap: wrap; gap: 6px; padding: 16px 20px; margin-top: auto; border-top: 1px solid var(--border); }
+  .pill { font-size: 10px; font-family: var(--mono); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border2); color: var(--muted); }
+  .pill.py { border-color: rgba(59,130,246,0.3); color: #93c5fd; }
+  .pill.ai { border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
+  .main { display: flex; flex-direction: column; height: 100vh; }
+  .topbar { padding: 14px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); flex-shrink: 0; }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .status-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  #status-text { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .topbar-right { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  #messages::-webkit-scrollbar { width: 4px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .msg { display: flex; gap: 12px; max-width: 820px; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.assistant { align-self: flex-start; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; margin-top: 2px; }
+  .msg.user .avatar { background: var(--accent2); }
+  .msg.assistant .avatar { background: var(--surface2); border: 1px solid var(--border2); }
+  .bubble { padding: 11px 15px; border-radius: 12px; font-size: 13.5px; line-height: 1.65; }
+  .msg.user .bubble { background: var(--accent2); color: #fff; border-radius: 12px 12px 3px 12px; }
+  .msg.assistant .bubble { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px 12px 12px 3px; color: var(--text); }
+  .bubble p { margin-bottom: 8px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble ol, .bubble ul { margin: 8px 0 8px 18px; }
+  .bubble li { margin-bottom: 4px; }
+  .bubble strong { color: #fff; font-weight: 500; }
+  .bubble code { font-family: var(--mono); font-size: 12px; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; }
+  .source-row { margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+  .source-tag { font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: 3px; background: rgba(59,130,246,0.1); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+  #empty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 12px; text-align: center; padding: 40px; }
+  #empty .empty-icon { font-size: 48px; opacity: 0.2; }
+  #empty h2 { font-size: 16px; font-weight: 500; color: var(--muted); }
+  #empty p { font-size: 13px; color: var(--muted); max-width: 320px; line-height: 1.6; opacity: 0.7; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+  .chip { font-size: 12px; padding: 6px 12px; border: 1px solid var(--border2); border-radius: 20px; cursor: pointer; color: var(--muted); background: var(--surface2); transition: all 0.15s; font-family: var(--mono); }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 12px 15px; }
+  .typing span { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+  .input-area { padding: 16px 24px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .input-row { display: flex; gap: 10px; align-items: flex-end; background: var(--surface2); border: 1px solid var(--border2); border-radius: 12px; padding: 10px 12px; transition: border-color 0.15s; }
+  .input-row:focus-within { border-color: var(--accent); }
+  #msg-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: var(--sans); font-size: 13.5px; resize: none; min-height: 24px; max-height: 120px; line-height: 1.5; }
+  #msg-input::placeholder { color: var(--muted); }
+  #msg-input:disabled { opacity: 0.4; }
+  #send-btn { width: 32px; height: 32px; background: var(--accent); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; color: #fff; font-size: 14px; }
+  #send-btn:hover { background: #2563eb; }
+  #send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .input-hint { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 8px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-row">
+        <div class="logo-icon">✈️</div>
+        <div class="logo-text">FlightRAG</div>
+      </div>
+      <div class="logo-sub">v1.0 · python + chromadb</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Flight Manual</div>
+      <div id="upload-zone"
+        onclick="document.getElementById('file-input').click()"
+        ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">Drop PDF here or <span>browse</span><br>POH · AFM · Maintenance manuals</div>
+      </div>
+      <input type="file" id="file-input" accept="application/pdf" onchange="handleFile(event)">
+
+      <div id="processing">
+        <div class="proc-inner">
+          <div class="proc-row">
+            <div class="spinner"></div>
+            <div id="proc-label">Chunking PDF...</div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+        </div>
+      </div>
+
+      <div id="doc-status">
+        <div class="doc-card">
+          <div class="doc-top">
+            <div class="doc-icon">📋</div>
+            <div class="doc-meta">
+              <div class="doc-name" id="doc-name">manual.pdf</div>
+              <div class="doc-stat" id="doc-stat">0 chunks · ChromaDB</div>
+            </div>
+          </div>
+          <div class="doc-badge"><div class="dot"></div>Indexed &amp; ready</div>
+          <button class="btn-change" onclick="resetSession()">✕ Remove &amp; upload new</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack-pills">
+      <div class="pill py">Python 3.11</div>
+      <div class="pill py">FastAPI</div>
+      <div class="pill py">pypdf</div>
+      <div class="pill py">ChromaDB</div>
+      <div class="pill ai">LLaMA 3.3 70B</div>
+      <div class="pill ai">RAG Pipeline</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="status-dot" id="status-dot"></div>
+        <div id="status-text">no manual loaded</div>
+      </div>
+      <div class="topbar-right" id="session-id-display"></div>
+    </div>
+
+    <div id="messages">
+      <div id="empty">
+        <div class="empty-icon">🛩️</div>
+        <h2>Upload a flight manual to begin</h2>
+        <p>The RAG pipeline will chunk your PDF, embed it into ChromaDB, and retrieve the most relevant sections for each question.</p>
+        <div class="chips">
+          <div class="chip" onclick="trySuggestion(this)">Engine start procedure</div>
+          <div class="chip" onclick="trySuggestion(this)">Emergency checklist</div>
+          <div class="chip" onclick="trySuggestion(this)">Stall speeds Vs &amp; Vne</div>
+          <div class="chip" onclick="trySuggestion(this)">Fuel system overview</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea id="msg-input" placeholder="Ask about procedures, limitations, systems..." rows="1" disabled
+          oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+        <button id="send-btn" disabled onclick="sendMessage()">➤</button>
+      </div>
+      <div class="input-hint">Python FastAPI backend · ChromaDB vector retrieval · LLaMA 3.3 70B</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let sessionId = null;
+let chatHistory = [];
+let isLoading = false;
+
+function onDrag(e, over) { e.preventDefault(); document.getElementById('upload-zone').classList.toggle('drag', over); }
+function onDrop(e) { e.preventDefault(); onDrag(e, false); const f = e.dataTransfer.files[0]; if (f) uploadFile(f); }
+function handleFile(e) { const f = e.target.files[0]; if (f) uploadFile(f); }
+
+async function uploadFile(file) {
+  if (!file.name.endsWith('.pdf')) return alert('Please upload a PDF file.');
+  show('processing'); hide('upload-zone'); hide('doc-status');
+  setProc('Extracting text from PDF...');
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    setProc('Chunking & embedding into ChromaDB...');
+    const res = await fetch(`${API}/upload`, { method: 'POST', body: formData });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    const data = await res.json();
+    sessionId = data.session_id;
+    show('doc-status'); hide('processing'); hide('upload-zone');
+    document.getElementById('doc-name').textContent = data.filename;
+    document.getElementById('doc-stat').textContent = `${data.chunks} chunks · ChromaDB`;
+    document.getElementById('session-id-display').textContent = `session: ${sessionId.slice(0,8)}`;
+    setStatus(true, `${data.filename} · ${data.chunks} chunks indexed`);
+    enableChat();
+    removeEmpty();
+    appendMessage('assistant', `✅ Manual indexed! I've split <strong>${data.filename}</strong> into <strong>${data.chunks} chunks</strong> and stored them in ChromaDB.\n\nThe RAG pipeline will now retrieve the top 5 most relevant sections for each question. Ask me anything about the manual.`, 0);
+  } catch (err) {
+    show('upload-zone'); hide('processing');
+    alert('Upload failed: ' + err.message + '\n\nMake sure the Python backend is running on localhost:8000');
+  }
+}
+
+async function sendMessage() {
+  if (isLoading || !sessionId) return;
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = ''; input.style.height = 'auto';
+  isLoading = true;
+  document.getElementById('send-btn').disabled = true;
+  removeEmpty();
+  appendMessage('user', escHtml(text));
+  chatHistory.push({ role: 'user', content: text });
+  appendTyping();
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, question: text, history: chatHistory.slice(-6) }),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    const data = await res.json();
+    removeTyping();
+    appendMessage('assistant', formatAnswer(data.answer), data.sources_used);
+    chatHistory.push({ role: 'assistant', content: data.answer });
+  } catch (err) {
+    removeTyping();
+    appendMessage('assistant', '⚠️ Error: ' + err.message);
+  }
+  isLoading = false;
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('msg-input').focus();
+}
+
+function trySuggestion(el) {
+  if (!sessionId) { alert('Please upload a flight manual first.'); return; }
+  document.getElementById('msg-input').value = el.textContent;
+  sendMessage();
+}
+
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+function appendMessage(role, html, sources) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const avatar = role === 'user' ? '👤' : '🤖';
+  const srcTag = (sources > 0) ? `<div class="source-row"><span class="source-tag">📚 ${sources} chunks retrieved</span><span class="source-tag">ChromaDB · RAG</span></div>` : '';
+  div.innerHTML = `<div class="avatar">${avatar}</div><div class="bubble">${html}${srcTag}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendTyping() {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg assistant'; div.id = 'typing';
+  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() { const t = document.getElementById('typing'); if (t) t.remove(); }
+function removeEmpty()  { const e = document.getElementById('empty');  if (e) e.remove(); }
+
+function formatAnswer(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n(\d+)\. /g,'<br><strong>$1.</strong> ')
+    .replace(/\n- /g,'<br>• ')
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/\n/g,'<br>');
+}
+
+function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function setStatus(active, text) {
+  document.getElementById('status-dot').className = 'status-dot' + (active ? ' active' : '');
+  document.getElementById('status-text').textContent = text;
+}
+
+function setProc(text) { document.getElementById('proc-label').textContent = text; }
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function enableChat() {
+  const i = document.getElementById('msg-input');
+  i.disabled = false; i.placeholder = 'Ask about procedures, limitations, systems...';
+  document.getElementById('send-btn').disabled = false;
+}
+
+async function resetSession() {
+  if (sessionId) {
+    await fetch(`${API}/sessions/${sessionId}`, { method: 'DELETE' });
+    sessionId = null; chatHistory = [];
+  }
+  document.getElementById('file-input').value = '';
+  show('upload-zone'); hide('doc-status'); hide('processing');
+  document.getElementById('msg-input').disabled = true;
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('session-id-display').textContent = '';
+  setStatus(false, 'no manual loaded');
+  document.getElementById('messages').innerHTML = `<div id="empty">
+    <div class="empty-icon">🛩️</div>
+    <h2>Upload a flight manual to begin</h2>
+    <p>The RAG pipeline will chunk your PDF, embed it into ChromaDB, and retrieve the most relevant sections for each question.</p>
+    <div class="chips">
+      <div class="chip" onclick="trySuggestion(this)">Engine start procedure</div>
+      <div class="chip" onclick="trySuggestion(this)">Emergency checklist</div>
+      <div class="chip" onclick="trySuggestion(this)">Stall speeds Vs &amp; Vne</div>
+      <div class="chip" onclick="trySuggestion(this)">Fuel system overview</div>
+    </div></div>`;
+}
+</script>
+</body>
+</html>
