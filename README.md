@@ -4,6 +4,8 @@ An AI-powered Q&A chatbot for aviation documents using a real **Retrieval-Augmen
 
 Upload any flight manual PDF (POH, AFM, maintenance manual) and ask questions — the system retrieves only the most relevant sections before answering, grounded in your actual document.
 
+<img width="1600" height="721" alt="demo2" src="https://github.com/user-attachments/assets/78eb0e9a-285e-4a24-a354-b046a903146e" />
+<img width="1600" height="727" alt="demo1" src="https://github.com/user-attachments/assets/b1470927-d216-4ab8-86d7-c997b2fdf073" />
 ---
 
 ## How the RAG Pipeline Works
@@ -101,6 +103,7 @@ flight-manual-rag/
 ├── .gitignore
 └── README.md
 
+
 ---
 
 ## API Endpoints
@@ -113,3 +116,11 @@ flight-manual-rag/
 | DELETE | /sessions/{id} | Clear session |
 
 ---
+
+
+
+
+
+
+
+
